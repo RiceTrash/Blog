@@ -203,11 +203,52 @@ body {
 }
 
 .scroll-indicator {
-    width: 2px;
-    height: 32px;
-    background: white;
-    border-radius: 1px;
+    width: 30px;
+    height: 50px;
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    border-radius: 15px;
+    position: relative;
     animation: scroll-bounce 2s infinite;
+    overflow: hidden;
+}
+
+.scroll-indicator::before {
+    content: '';
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    width: 4px;
+    height: 10px;
+    background-color: white;
+    border-radius: 2px;
+    transform: translateX(-50%);
+    opacity: 0.9;
+    animation: scroll-dot 2s infinite;
+}
+
+.scroll-indicator::after {
+    content: '';
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    width: 12px;
+    height: 12px;
+    border-right: 2.5px solid white;
+    border-bottom: 2.5px solid white;
+    transform: translate(-50%, 0) rotate(45deg);
+    animation: arrow-pulse 2s infinite;
+}
+
+@keyframes scroll-dot {
+    0% { transform: translateX(-50%) translateY(0); opacity: 1; }
+    30% { transform: translateX(-50%) translateY(20px); opacity: 0; }
+    60% { transform: translateX(-50%) translateY(0); opacity: 0; }
+    100% { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+
+@keyframes arrow-pulse {
+    0%, 100% { transform: translate(-50%, 0) rotate(45deg); opacity: 0.8; }
+    50% { transform: translate(-50%, 0) rotate(45deg); opacity: 0.4; }
 }
 
 @keyframes scroll-bounce {
