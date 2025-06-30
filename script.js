@@ -17,26 +17,23 @@ class TourBlog {
         const navToggle = document.querySelector('.nav-toggle');
         const navMenu = document.querySelector('.nav-menu');
 
-        // Navbar scroll effect
+        // Improved navbar scroll effect that keeps navbar visible
         let lastScrollY = window.scrollY;
         
         window.addEventListener('scroll', () => {
             const currentScrollY = window.scrollY;
             
+            // Always keep navbar visible, just change styling on scroll
             if (currentScrollY > 100) {
                 navbar.style.background = 'rgba(255, 255, 255, 0.98)';
                 navbar.style.boxShadow = '0 2px 20px rgba(0, 0, 0, 0.1)';
             } else {
                 navbar.style.background = 'rgba(255, 255, 255, 0.95)';
-                navbar.style.boxShadow = 'none';
+                navbar.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.05)';
             }
-
-            // Hide/show navbar on scroll
-            if (currentScrollY > lastScrollY && currentScrollY > 200) {
-                navbar.style.transform = 'translateY(-100%)';
-            } else {
-                navbar.style.transform = 'translateY(0)';
-            }
+            
+            // Remove the transform that would hide the navbar
+            // navbar.style.transform = 'translateY(0)';
             
             lastScrollY = currentScrollY;
         });
