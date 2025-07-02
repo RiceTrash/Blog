@@ -10,6 +10,7 @@ class TourBlog {
         this.setupIntersectionObserver();
         this.setupPhotoInteractions();
         this.setupSmoothScrolling();
+        this.initSlideshows(); // Initialize slideshows
     }
 
     setupNavigation() {
@@ -154,23 +155,31 @@ class TourBlog {
             const placeholder = card.querySelector('.photo-placeholder');
             
             // Add hover effects
-            card.addEventListener('mouseenter', () => {
-                placeholder.style.transform = 'scale(1.05)';
-                placeholder.style.transition = 'transform 0.3s ease';
-            });
-            
-            card.addEventListener('mouseleave', () => {
-                placeholder.style.transform = 'scale(1)';
-            });
-
-            // Add click interaction for future image upload
-            card.addEventListener('click', () => {
-                this.showPhotoModal(card);
-            });
+            if (placeholder) {
+                card.addEventListener('mouseenter', () => {
+                    placeholder.style.transform = 'scale(1.05)';
+                    placeholder.style.transition = 'transform 0.3s ease';
+                });
+                
+                card.addEventListener('mouseleave', () => {
+                    placeholder.style.transform = 'scale(1)';
+                });
+                
+                // Add click interaction to open modal, but check if click was on slideshow controls
+                card.addEventListener('click', (e) => {
+                    // Don't open modal if clicking on slideshow controls
+                    if (e.target.closest('.slideshow-arrow') || e.target.closest('.dot')) {
+                        return;
+                    }
+                    this.showPhotoModal(card);
+                });
+            }
         });
     }
 
+    // Add modal functionality back
     showPhotoModal(photoCard) {
+        // Create modal container with improved design
         const modal = document.createElement('div');
         modal.className = 'photo-modal';
         modal.style.cssText = `
@@ -179,55 +188,487 @@ class TourBlog {
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.85);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 2000;
             opacity: 0;
-            transition: opacity 0.3s ease;
+            transition: opacity 0.4s ease;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
         `;
 
+        // Create a more architecturally interesting modal content container
         const modalContent = document.createElement('div');
         modalContent.style.cssText = `
             background: white;
-            padding: 32px;
-            border-radius: 16px;
-            max-width: 500px;
+            border-radius: 4px;
+            max-width: 700px;
             width: 90%;
-            text-align: center;
-            transform: scale(0.9);
-            transition: transform 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+            transform: scale(0.95) translateY(20px);
+            transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
         `;
 
+        // Get info from the card
         const title = photoCard.querySelector('.photo-info h4').textContent;
         const description = photoCard.querySelector('.photo-info p').textContent;
-
-        modalContent.innerHTML = `
-            <h3 style="margin-bottom: 16px; font-size: 24px; color: #1a1a1a;">${title}</h3>
-            <p style="margin-bottom: 24px; color: #666; line-height: 1.6;">${description}</p>
-            <div style="width: 100%; height: 200px; background: linear-gradient(135deg, #f8f9ff 0%, #e6e8ff 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 24px;">
-                <span style="font-size: 48px; opacity: 0.6;">📷</span>
-            </div>
-            <button class="close-modal" style="background: #007AFF; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 500; cursor: pointer;">Close</button>
+        
+        // Check if this is a slideshow
+        const slideContainer = photoCard.querySelector('.slideshow-container');
+        
+        // Create the header section with subtle top border gradient
+        const modalHeader = document.createElement('div');
+        modalHeader.style.cssText = `
+            position: relative;
+            overflow: hidden;
         `;
-
+        
+        modalHeader.innerHTML = `<div style="height: 4px; background: linear-gradient(90deg, #007AFF, #5856D6);"></div>`;
+        
+        // Add a close icon in the corner - moved here to fix reference issues
+        const closeIcon = document.createElement('button');
+        closeIcon.innerHTML = '&times;';
+        closeIcon.style.cssText = `
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 10;
+            transition: all 0.2s ease;
+        `;
+        
+        closeIcon.addEventListener('mouseenter', () => {
+            closeIcon.style.background = 'rgba(0,0,0,0.8)';
+            closeIcon.style.transform = 'scale(1.1)';
+        });
+        
+        closeIcon.addEventListener('mouseleave', () => {
+            closeIcon.style.background = 'rgba(0,0,0,0.5)';
+            closeIcon.style.transform = 'scale(1)';
+        });
+        
+        // Create the image/slideshow container with better proportions
+        const mediaContainer = document.createElement('div');
+        
+        if (slideContainer) {
+            // For slideshow, include all images in the modal with navigation
+            const images = Array.from(slideContainer.querySelectorAll('.slideshow-image'));
+            const activeImageIndex = images.findIndex(img => img.classList.contains('active'));
+            
+            mediaContainer.style.cssText = `
+                width: 100%;
+                height: 420px;
+                position: relative;
+                overflow: hidden;
+                background: #000;
+            `;
+            
+            let currentModalIndex = activeImageIndex >= 0 ? activeImageIndex : 0;
+            
+            // Add images to modal
+            images.forEach((img, index) => {
+                const imgClone = document.createElement('img');
+                imgClone.src = img.src;
+                imgClone.alt = img.alt;
+                imgClone.style.cssText = `
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    opacity: ${index === currentModalIndex ? '1' : '0'};
+                    transition: opacity 0.5s ease;
+                `;
+                mediaContainer.appendChild(imgClone);
+            });
+            
+            // Add navigation arrows with improved design
+            const prevBtn = document.createElement('button');
+            prevBtn.innerHTML = '&#10094;';
+            prevBtn.style.cssText = `
+                position: absolute;
+                top: 50%;
+                left: 20px;
+                transform: translateY(-50%);
+                background: rgba(0,0,0,0.5);
+                color: white;
+                border: none;
+                width: 48px;
+                height: 48px;
+                border-radius: 50%;
+                cursor: pointer;
+                font-size: 18px;
+                z-index: 2;
+                transition: all 0.2s ease;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            `;
+            
+            const nextBtn = document.createElement('button');
+            nextBtn.innerHTML = '&#10095;';
+            nextBtn.style.cssText = `
+                position: absolute;
+                top: 50%;
+                right: 20px;
+                transform: translateY(-50%);
+                background: rgba(0,0,0,0.5);
+                color: white;
+                border: none;
+                width: 48px;
+                height: 48px;
+                border-radius: 50%;
+                cursor: pointer;
+                font-size: 18px;
+                z-index: 2;
+                transition: all 0.2s ease;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            `;
+            
+            // Hover effects for buttons
+            prevBtn.addEventListener('mouseenter', () => {
+                prevBtn.style.background = 'rgba(0,0,0,0.8)';
+                prevBtn.style.transform = 'translateY(-50%) scale(1.1)';
+            });
+            
+            prevBtn.addEventListener('mouseleave', () => {
+                prevBtn.style.background = 'rgba(0,0,0,0.5)';
+                prevBtn.style.transform = 'translateY(-50%) scale(1)';
+            });
+            
+            nextBtn.addEventListener('mouseenter', () => {
+                nextBtn.style.background = 'rgba(0,0,0,0.8)';
+                nextBtn.style.transform = 'translateY(-50%) scale(1.1)';
+            });
+            
+            nextBtn.addEventListener('mouseleave', () => {
+                nextBtn.style.background = 'rgba(0,0,0,0.5)';
+                nextBtn.style.transform = 'translateY(-50%) scale(1)';
+            });
+            
+            mediaContainer.appendChild(prevBtn);
+            mediaContainer.appendChild(nextBtn);
+            
+            // Add progress indicators
+            const indicators = document.createElement('div');
+            indicators.style.cssText = `
+                position: absolute;
+                bottom: 20px;
+                left: 0;
+                right: 0;
+                display: flex;
+                justify-content: center;
+                gap: 10px;
+                z-index: 2;
+            `;
+            
+            images.forEach((_, index) => {
+                const dot = document.createElement('span');
+                dot.style.cssText = `
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    background: ${index === currentModalIndex ? 'white' : 'rgba(255,255,255,0.4)'};
+                    transition: all 0.3s ease;
+                    cursor: pointer;
+                `;
+                dot.dataset.index = index;
+                indicators.appendChild(dot);
+                
+                dot.addEventListener('click', () => {
+                    showModalImage(index);
+                });
+            });
+            
+            mediaContainer.appendChild(indicators);
+            
+            // Navigation functionality with improved transitions
+            const showModalImage = (index) => {
+                if (index < 0) index = images.length - 1;
+                if (index >= images.length) index = 0;
+                
+                Array.from(mediaContainer.querySelectorAll('img')).forEach((img, i) => {
+                    img.style.opacity = i === index ? '1' : '0';
+                });
+                
+                Array.from(indicators.querySelectorAll('span')).forEach((dot, i) => {
+                    dot.style.background = i === index ? 'white' : 'rgba(255,255,255,0.4)';
+                    dot.style.transform = i === index ? 'scale(1.2)' : 'scale(1)';
+                });
+                
+                currentModalIndex = index;
+            };
+            
+            prevBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showModalImage(currentModalIndex - 1);
+            });
+            
+            nextBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showModalImage(currentModalIndex + 1);
+            });
+        } else {
+            // For regular images, create an enhanced image display
+            const image = photoCard.querySelector('.photo-image');
+            
+            mediaContainer.style.cssText = `
+                width: 100%;
+                height: 420px;
+                position: relative;
+                overflow: hidden;
+                background: #000;
+            `;
+            
+            if (image) {
+                const modalImg = document.createElement('img');
+                modalImg.src = image.src;
+                modalImg.alt = image.alt;
+                modalImg.style.cssText = `
+                    width: 100%;
+                    height: 100%;
+                    object-fit: contain;
+                `;
+                mediaContainer.appendChild(modalImg);
+            } else {
+                // Fallback if no image is found
+                mediaContainer.style.cssText = `
+                    width: 100%;
+                    height: 300px;
+                    background: linear-gradient(135deg, #f0f2f5 0%, #e6e9ef 100%);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                `;
+                mediaContainer.innerHTML = '<span style="font-size: 48px; opacity: 0.4;">📷</span>';
+            }
+        }
+        
+        modalHeader.appendChild(mediaContainer);
+        
+        // Create content section with improved typography
+        const modalInfo = document.createElement('div');
+        modalInfo.style.cssText = `
+            padding: 32px 36px 24px;
+            background: white;
+        `;
+        
+        const modalTitle = document.createElement('h3');
+        modalTitle.textContent = title;
+        modalTitle.style.cssText = `
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 12px;
+            letter-spacing: -0.02em;
+            line-height: 1.3;
+        `;
+        
+        const modalDesc = document.createElement('p');
+        modalDesc.textContent = description;
+        modalDesc.style.cssText = `
+            font-size: 16px;
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 0;
+        `;
+        
+        // Create an architectural modal footer
+        const modalFooter = document.createElement('div');
+        modalFooter.style.cssText = `
+            padding: 20px 36px;
+            background: #f5f7fa;
+            border-top: 1px solid #e4e7ec;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+        `;
+        
+        // Add subtle decorative elements
+        const footerAccent = document.createElement('div');
+        footerAccent.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(to right, 
+                transparent, 
+                rgba(0, 122, 255, 0.2) 20%, 
+                rgba(0, 122, 255, 0.3) 50%, 
+                rgba(0, 122, 255, 0.2) 80%, 
+                transparent
+            );
+            transform: translateY(-1px);
+        `;
+        modalFooter.appendChild(footerAccent);
+        
+        // Left side: metadata
+        const metaContainer = document.createElement('div');
+        metaContainer.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        `;
+        
+        // Add image info
+        const imageInfoWrapper = document.createElement('div');
+        imageInfoWrapper.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        `;
+        
+        const imageTypeIcon = document.createElement('span');
+        imageTypeIcon.innerHTML = slideContainer ? '🖼️' : '📸';
+        imageTypeIcon.style.cssText = `
+            font-size: 14px;
+            opacity: 0.8;
+        `;
+        
+        const imageTypeLabel = document.createElement('span');
+        imageTypeLabel.textContent = slideContainer ? 'Gallery Image' : 'Single Image';
+        imageTypeLabel.style.cssText = `
+            font-size: 13px;
+            color: #555;
+            font-weight: 500;
+        `;
+        
+        imageInfoWrapper.appendChild(imageTypeIcon);
+        imageInfoWrapper.appendChild(imageTypeLabel);
+        
+        // Add location info
+        const locationInfo = document.createElement('div');
+        locationInfo.style.cssText = `
+            font-size: 12px;
+            color: #888;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        `;
+        
+        locationInfo.innerHTML = '<span style="font-size: 10px;">📍</span> Luzon, Philippines';
+        
+        metaContainer.appendChild(imageInfoWrapper);
+        metaContainer.appendChild(locationInfo);
+        
+        // Right side: actions area
+        const actionsContainer = document.createElement('div');
+        actionsContainer.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        `;
+        
+        // Add counter for slideshow
+        if (slideContainer) {
+            const images = Array.from(slideContainer.querySelectorAll('.slideshow-image'));
+            const imageCounter = document.createElement('div');
+            imageCounter.style.cssText = `
+                font-size: 13px;
+                color: #666;
+                background: #ecedf0;
+                padding: 4px 10px;
+                border-radius: 12px;
+                font-variant-numeric: tabular-nums;
+            `;
+            
+            // Set initial counter value
+            const initialIndex = images.findIndex(img => img.classList.contains('active'));
+            imageCounter.textContent = `${initialIndex + 1} / ${images.length}`;
+            imageCounter.id = 'modal-image-counter';
+            
+            // We need to update the showModalImage function to update the counter
+            const originalShowModalImage = window.showModalImage;
+            window.showModalImage = function(index) {
+                if (typeof originalShowModalImage === 'function') {
+                    originalShowModalImage(index);
+                }
+                imageCounter.textContent = `${index + 1} / ${images.length}`;
+            };
+            
+            actionsContainer.appendChild(imageCounter);
+        }
+        
+        // Close button with icon
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'close-modal';
+        closeBtn.innerHTML = '<span style="margin-right: 6px; font-size: 14px;">✕</span> Close';
+        closeBtn.style.cssText = `
+            background: #f0f2f5;
+            color: #1a1a1a;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-weight: 500;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            letter-spacing: 0.02em;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        `;
+        
+        closeBtn.addEventListener('mouseenter', () => {
+            closeBtn.style.background = '#e4e6ea';
+        });
+        
+        closeBtn.addEventListener('mouseleave', () => {
+            closeBtn.style.background = '#f0f2f5';
+        });
+        
+        actionsContainer.appendChild(closeBtn);
+        
+        // Assemble the footer
+        modalFooter.appendChild(metaContainer);
+        modalFooter.appendChild(actionsContainer);
+        
+        // Assemble the modal parts
+        modalInfo.appendChild(modalTitle);
+        modalInfo.appendChild(modalDesc);
+        
+        modalContent.appendChild(modalHeader);
+        modalContent.appendChild(modalInfo);
+        modalContent.appendChild(modalFooter);
+        modalContent.appendChild(closeIcon);
+        
         modal.appendChild(modalContent);
         document.body.appendChild(modal);
 
-        // Animate in
+        // Animate in with more sophisticated motion
         requestAnimationFrame(() => {
             modal.style.opacity = '1';
-            modalContent.style.transform = 'scale(1)';
+            modalContent.style.transform = 'scale(1) translateY(0)';
         });
 
-        // Close modal
+        // Close modal function
         const closeModal = () => {
             modal.style.opacity = '0';
-            modalContent.style.transform = 'scale(0.9)';
+            modalContent.style.transform = 'scale(0.95) translateY(20px)';
+            document.body.style.overflow = '';
+            
             setTimeout(() => {
                 document.body.removeChild(modal);
-            }, 300);
+            }, 400);
         };
 
         modal.addEventListener('click', (e) => {
@@ -236,13 +677,11 @@ class TourBlog {
             }
         });
 
-        modalContent.querySelector('.close-modal').addEventListener('click', closeModal);
+        closeBtn.addEventListener('click', closeModal);
+        closeIcon.addEventListener('click', closeModal);
 
         // Prevent body scroll when modal is open
         document.body.style.overflow = 'hidden';
-        modal.addEventListener('remove', () => {
-            document.body.style.overflow = '';
-        });
     }
 
     setupSmoothScrolling() {
@@ -322,6 +761,98 @@ class TourBlog {
         };
 
         createScrollToTop();
+    }
+
+    initSlideshows() {
+        const slideshows = document.querySelectorAll('.slideshow-container');
+        
+        slideshows.forEach(slideshow => {
+            const images = slideshow.querySelectorAll('.slideshow-image');
+            const dots = slideshow.querySelectorAll('.dot');
+            const prevArrow = slideshow.querySelector('.prev');
+            const nextArrow = slideshow.querySelector('.next');
+            let currentIndex = 0;
+            let slideInterval;
+            
+            // Function to show a specific slide
+            const showSlide = (index) => {
+                // Handle index boundaries
+                if (index < 0) {
+                    index = images.length - 1;
+                } else if (index >= images.length) {
+                    index = 0;
+                }
+                
+                // Hide all images
+                images.forEach(image => image.classList.remove('active'));
+                
+                // Remove active class from all dots
+                dots.forEach(dot => dot.classList.remove('active'));
+                
+                // Show the selected image
+                images[index].classList.add('active');
+                
+                // Highlight the corresponding dot
+                if (dots[index]) {
+                    dots[index].classList.add('active');
+                }
+                
+                // Update current index
+                currentIndex = index;
+            };
+            
+            // Function to start automatic slideshow
+            const startSlideshow = () => {
+                slideInterval = setInterval(() => {
+                    showSlide(currentIndex + 1);
+                }, 3000); // Change slide every 3 seconds
+            };
+            
+            // Reset interval timer
+            const resetInterval = () => {
+                clearInterval(slideInterval);
+                startSlideshow();
+            };
+            
+            // Start automatic slideshow
+            startSlideshow();
+            
+            // Event listeners for manual navigation
+            if (prevArrow) {
+                prevArrow.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Stop event from bubbling to the photo card
+                    showSlide(currentIndex - 1);
+                    resetInterval();
+                });
+            }
+            
+            if (nextArrow) {
+                nextArrow.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Stop event from bubbling to the photo card
+                    showSlide(currentIndex + 1);
+                    resetInterval();
+                });
+            }
+            
+            // Event listeners for dots
+            dots.forEach((dot, index) => {
+                dot.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Stop event from bubbling to the photo card
+                    showSlide(index);
+                    resetInterval();
+                });
+            });
+            
+            // Pause slideshow on hover
+            slideshow.addEventListener('mouseenter', () => {
+                clearInterval(slideInterval);
+            });
+            
+            // Resume slideshow after hover
+            slideshow.addEventListener('mouseleave', () => {
+                startSlideshow();
+            });
+        });
     }
 }
 
